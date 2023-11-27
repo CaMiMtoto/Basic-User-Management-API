@@ -76,33 +76,68 @@ router.post('/login', [
 });
 
 // change password
-router.post('/change-password',
-    authMiddleware, [
-        check('old_password', "Old password is required").not().isEmpty(),
-        check('new_password', "New password is required").not().isEmpty(),
-        check('confirm-password', "Password confirmation is required").not().isEmpty()
-    ], async (req, res, next) => {
+router.post('/change-password', authMiddleware, [
+    check('old_password', "Old password is required").not().isEmpty(),
+    check('new_password', "New password is required").not().isEmpty(),
+    check('confirm_password', "Password confirmation is required").not().isEmpty()
+], async (req, res, next) => {
 
-        const user = req.user;
-        console.log(user);
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({errors: errors.array()});
+    }
 
-        const { old_password, new_password,password_confirmation} = req.body;
-        const isPasswordMatch = await bcrypt.compare(old_password, user.password);
+    const user = req.user;
+    const {old_password, new_password, confirm_password} = req.body;
+    const isPasswordMatch = await bcrypt.compare(old_password, user.password);
 
-        if (!isPasswordMatch) {
-            return res.status(401).send({message: "Invalid old password provided"});
-        }
+    if (!isPasswordMatch) {
+        return res.status(400).send({message: "Invalid old password provided"});
+    }
+    if (new_password !== confirm_password) {
+        return res.status(400).send({message: "New password must be confirmed"});
+    }
 
-        if (new_password===password_confirmation){
-            return res.status(401).send({message: "New password must be confirmed"});
-        }
+    // update password
+    user.password = new_password;
+    await user.save();
 
+    const token = generateAuthToken(user);
+    const userObj = _.pick(user, ['_id', 'name', 'email']);
+    res.send({
+        user: userObj, token
+    });
+});
 
-        const token = generateAuthToken(user);
-        const userObj = _.pick(user, ['_id', 'name', 'email']);
-        res.send({
-            user: userObj, token
-        });
-    })
+// profile
+router.get('/profile', authMiddleware, async (req, res) => {
+    const user = req.user;
+    const userObj = _.pick(user, ['_id', 'name', 'email']);
+    res.send(userObj);
+});
+
+// update profile information,(name ,email)
+router.put('/profile', authMiddleware, [
+    check('name', 'Name is required').not().isEmpty(),
+    check('email', 'Email is required').not().isEmpty().isEmail(),
+], async (req, res) => {
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({errors: errors.array()});
+    }
+
+    const user = req.user;
+    const {name, email} = req.body;
+    user.name = name;
+    user.email = email;
+    await user.save();
+    const token = generateAuthToken(user);
+    const userObj = _.pick(user, ['_id', 'name', 'email']);
+    res.send({
+        user: userObj, token
+    });
+});
+
 
 module.exports = router;

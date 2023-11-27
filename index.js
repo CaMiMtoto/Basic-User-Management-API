@@ -2,7 +2,6 @@ require('dotenv').config()
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const usersRoutes = require('./routes/usersRoutes');
 const authRoutes = require('./routes/authRoutes');
 const cors = require('cors');
 const app = express();
@@ -22,7 +21,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/user-mana
 app.use(bodyParser.json());
 
 app.use("/api/auth", authRoutes);
-app.use("/api/users", usersRoutes); // User routes
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
